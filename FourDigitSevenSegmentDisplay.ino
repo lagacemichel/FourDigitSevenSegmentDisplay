@@ -1,36 +1,37 @@
 /*
-Four digit seven-segment display demonstration
- 
-Program that displays a floating-point counter on a four-digit seven-segment
-display. It is associated with the Four Digit Seven Segment Display blog post
-on https://lagacemichel.com
+  Four digit seven-segment display demonstration
 
-MIT License
+  Program that displays a floating-point counter on a four-digit seven-segment
+  display. It is associated with the Four Digit Seven Segment Display blog post
+  at https://lagacemichel.com
 
-Copyright (c) 2021, Michel Lagace
+  MIT License
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+  Copyright (c) 2021, Michel Lagace
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 
-// Segment encodings for digits 0, 1, 2, 3, 4, 5, 6, 7, 8, and 9
-// Each bit represents a segment in the following order: n/a, a, b, c, d, e, f, g
-// The most significant bit is not used. Segments are identified as follows
+// Segment encodings for digits 0, 1, 2, 3, 4, 5, 6, 7, 8, and 9 and for the
+// minus // sign '-'. Each bit represents a segment in the following order:
+// n/a, a, b, c, d, e, f, g. The most significant bit is not used. Segments
+// are identified as follows
 //          a
 //      +-------+
 //      |       |
@@ -73,44 +74,50 @@ const int numberOfDigits = 4;
 #define SEGMENT_G 12
 #define SEGMENT_DP 13
 
-// Number of milliseconds to wait between digits
-const int digitTimeOn = 2;
+// Number of microseconds to leave digit on to achieve 100 Hz
+const int digitTimeOn = 2500;
 
-// Interval in milliseconds between counter increments
-const int timeBetweenIncrements = 200;
+// Interval in seconds between counter increments - 5 counts/sec
+const float timeBetweenIncrements = 0.2;
 
 // Number of digits after decimal points and floating-point constants
 const int scaleOfNumber = 1; // number of digits after decimal point
-const int scalingFactor = pow(10.0,scaleOfNumber);
-const float increment = 1.0/scalingFactor;
-const float minimumValue = -pow(10.0,numberOfDigits - 1)/scalingFactor;
-const float maximumValue = pow(10.0,numberOfDigits)/scalingFactor;
+const int scalingFactor = pow(10.0, scaleOfNumber);
+const float increment = 1.0 / scalingFactor;
+const float minimumValue = -pow(10.0, numberOfDigits - 1) / scalingFactor;
+const float maximumValue = pow(10.0, numberOfDigits) / scalingFactor;
 
-// Counters to test seven-segment operation
-int iterations = 0;
+// Counters to control value displayed on seven-segment display
+long iterations = 0;
 float displayCounter = minimumValue;
 
 // void extinguishDigits()
 // Extinguishes all digits in the four digit seven-segment display
 void extinguishDigits()
 {
-  // Make all ommon cathodes high (5 volts)
+  // Float all common cathodes by setting the gigit pind as input
   for (int currentDigit = DIGIT_1; currentDigit <= DIGIT_4; currentDigit++)
   {
-    digitalWrite(currentDigit, HIGH);
+    pinMode(currentDigit, INPUT);
   }
 
-  // Make all anodes of all segment LEDs low (0 volt)
-  for (int currentSegment = SEGMENT_A; currentSegment >= SEGMENT_DP; currentSegment++)
+  // Turn off all segment anodes
+  for (int currentSegment = SEGMENT_G; currentSegment >= SEGMENT_A; currentSegment--)
   {
     digitalWrite(currentSegment, LOW);
   }
+
+  // Turn off decimal precision
+  digitalWrite(SEGMENT_DP, LOW);
 }
 
 // void displayMinusSign(digit)
 // Displays a minus sign on the specified digit.
 void displayMinusSign(int digit)
 {
+  // Extinguish all digits
+  extinguishDigits();
+
   // Prepare the segments to light
   int segments = minusSign;
 
@@ -120,21 +127,11 @@ void displayMinusSign(int digit)
     digitalWrite(currentSegment, (segments & 1) == 1);
     segments = segments >> 1;
   }
-  digitalWrite(SEGMENT_DP, false);
 
   // Select requested digit
   int selectedDigitPin = digit + DIGIT_1 - 1;
-  for (int currentDigit = DIGIT_1; currentDigit <= DIGIT_4; currentDigit++)
-  {
-    if (currentDigit == selectedDigitPin)
-    {
-      digitalWrite(currentDigit, LOW); // Selected digit
-    }
-    else
-    {
-      digitalWrite(currentDigit, HIGH); // Other digits
-    }
-  }
+  pinMode(selectedDigitPin, OUTPUT);
+  digitalWrite(selectedDigitPin, LOW);
 }
 
 // void displayDigit(digit, value, decimalPoint)
@@ -142,6 +139,9 @@ void displayMinusSign(int digit)
 // and displays the decimal point if required.
 void displayDigit(int digit, int value, bool decimalPoint)
 {
+  // Extinguish all digits
+  extinguishDigits();
+
   // Prepare the segments to light
   int segments = 0;
   if ((value >= 0) && (value <= 9))
@@ -161,17 +161,8 @@ void displayDigit(int digit, int value, bool decimalPoint)
 
   // Select requested digit
   int selectedDigitPin = digit + DIGIT_1 - 1;
-  for (int currentDigit = DIGIT_1; currentDigit <= DIGIT_4; currentDigit++)
-  {
-    if (currentDigit == selectedDigitPin)
-    {
-      digitalWrite(currentDigit, LOW); // Selected digit
-    }
-    else
-    {
-      digitalWrite(currentDigit, HIGH); // Other digits
-    }
-  }
+  pinMode(selectedDigitPin, OUTPUT);
+  digitalWrite(selectedDigitPin, LOW);
 }
 
 // void displayNumber(number)
@@ -192,10 +183,10 @@ void displayNumber(float number)
       negative = true;
       number = -number;
     }
-    int fractionalPart = number*scalingFactor;
-    fractionalPart = fractionalPart%scalingFactor;
+    int fractionalPart = number * scalingFactor;
+    fractionalPart = fractionalPart % scalingFactor;
     int integerPart = number;
-  
+
     // Display fractional part
     int remainingValue = fractionalPart;
     for (int i = 0; i < scaleOfNumber; i++)
@@ -203,9 +194,9 @@ void displayNumber(float number)
       int digit = remainingValue % 10;
       remainingValue = remainingValue / 10;
       displayDigit(currentDigit--, digit, false);
-      delay(digitTimeOn);
+      delayMicroseconds(digitTimeOn);
     }
-  
+
     // Display integer part
     remainingValue = integerPart;
     bool decimalPoint = true;
@@ -215,14 +206,14 @@ void displayNumber(float number)
       remainingValue = remainingValue / 10;
       displayDigit(currentDigit--, digit, decimalPoint);
       decimalPoint = false;
-      delay(digitTimeOn);
+      delayMicroseconds(digitTimeOn);
     } while (remainingValue > 0);
 
     // Display minus sign if number is negative
     if (negative)
     {
       displayMinusSign(currentDigit--);
-      delay(digitTimeOn);
+      delayMicroseconds(digitTimeOn);
     }
   }
 
@@ -230,31 +221,29 @@ void displayNumber(float number)
   // and wait a bit if not all digits were lit, ensuring constant intensity for all numbers
   // currentDigit actually contains the number of digits left.
   extinguishDigits();
-  delay(digitTimeOn * currentDigit);
+  delayMicroseconds(digitTimeOn * currentDigit);
 }
 
 // void setup()
-// Set all digital pins used for digit selection and display segments as
-// outputs and extinguish all digits.
+// Set all digital pins used for digit selection as input to extinguish all digits
+// and set display segments as outputs.
 void setup() {
-  // Set all digit selection digital pins as output
-  pinMode(DIGIT_1, OUTPUT);
-  pinMode(DIGIT_2, OUTPUT);
-  pinMode(DIGIT_3, OUTPUT);
-  pinMode(DIGIT_4, OUTPUT);
+  // Float all digit selection digital pins as input
+  for (int currentDigit = DIGIT_1; currentDigit <= DIGIT_4; currentDigit++)
+  {
+    pinMode(currentDigit, INPUT);
+  }
 
-  // Set all segment digital pins as output
-  pinMode(SEGMENT_A, OUTPUT);
-  pinMode(SEGMENT_B, OUTPUT);
-  pinMode(SEGMENT_C, OUTPUT);
-  pinMode(SEGMENT_D, OUTPUT);
-  pinMode(SEGMENT_E, OUTPUT);
-  pinMode(SEGMENT_F, OUTPUT);
-  pinMode(SEGMENT_G, OUTPUT);
+  // Set all segment digital pins as output and turn them off
+  for (int currentSegment = SEGMENT_G; currentSegment >= SEGMENT_A; currentSegment--)
+  {
+    pinMode(currentSegment, OUTPUT);
+    digitalWrite(currentSegment, LOW);
+  }
+
+  // Set decimal point digital pin as output and turn it off
   pinMode(SEGMENT_DP, OUTPUT);
-
-  // Turn all digits off
-  extinguishDigits();
+  digitalWrite(SEGMENT_DP, LOW);
 }
 
 // void loop()
@@ -262,7 +251,7 @@ void setup() {
 void loop() {
   // Increment number of iterations until the interval between increments has been reached
   iterations++;
-  if (iterations > timeBetweenIncrements / (digitTimeOn * numberOfDigits))
+  if (timeBetweenIncrements < (iterations * digitTimeOn * numberOfDigits / 1000000.0))
   {
     // Reset loop counter and increment display counter
     iterations = 0;
@@ -274,5 +263,7 @@ void loop() {
       displayCounter = minimumValue;
     }
   }
+
+  // Display floating-point counter value
   displayNumber(displayCounter);
 }
