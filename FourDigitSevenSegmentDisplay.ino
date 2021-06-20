@@ -58,21 +58,21 @@ const int segmentPatterns[] = {
 const int minusSign = 0b00000001; // -: g
 
 // Digital output pins to select each of the four digits
-#define DIGIT_1 2
-#define DIGIT_2 3
-#define DIGIT_3 4
-#define DIGIT_4 5
+#define DIGIT_1 10
+#define DIGIT_2 11
+#define DIGIT_3 12
+#define DIGIT_4 13
 const int numberOfDigits = 4;
 
 // Digital output pins to turn on or off each segment of the selected digit
-#define SEGMENT_A 6
-#define SEGMENT_B 7
-#define SEGMENT_C 8
-#define SEGMENT_D 9
-#define SEGMENT_E 10
-#define SEGMENT_F 11
-#define SEGMENT_G 12
-#define SEGMENT_DP 13
+#define SEGMENT_A 2
+#define SEGMENT_B 3
+#define SEGMENT_C 4
+#define SEGMENT_D 5
+#define SEGMENT_E 6
+#define SEGMENT_F 7
+#define SEGMENT_G 8
+#define SEGMENT_DP 9
 
 // Number of microseconds to leave digit on to achieve 100 Hz
 const int digitTimeOn = 2500;
