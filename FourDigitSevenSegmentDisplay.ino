@@ -116,7 +116,7 @@ void displayMinusSign(int digit)
   }
 
   // Turn off decimal point segment
-  digitalWrite(SEGMENT_DP,LOW);
+  digitalWrite(SEGMENT_DP, LOW);
 
   // Turn on g segment to display minus sign ('-')
   digitalWrite(SEGMENT_G, HIGH);
@@ -176,9 +176,8 @@ void displayNumber(float number)
       negative = true;
       number = -number;
     }
-    int fractionalPart = number * scalingFactor;
-    fractionalPart = fractionalPart % scalingFactor;
     int integerPart = number;
+    int fractionalPart = (number - integerPart) * scalingFactor;
 
     // Display fractional part
     int remainingValue = fractionalPart;
@@ -224,7 +223,7 @@ void setup() {
 
   // Float all digit selection digital pins as input
   extinguishDigits();
-  
+
   // Set all segment digital pins as output and turn them off
   for (int currentSegment = SEGMENT_G; currentSegment >= SEGMENT_A; currentSegment--)
   {
@@ -252,7 +251,7 @@ void loop() {
     displayCounter += increment;
 
     // Reset display counter if it has reached the maximum value
-    if (displayCounter >= maximumValue)
+    if (displayCounter > maximumValue)
     {
       displayCounter = minimumValue;
     }
