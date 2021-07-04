@@ -28,6 +28,41 @@
   SOFTWARE.
 */
 
+// Digital output pins to turn on or off each segment of the selected digit
+#define SEGMENT_A 2
+#define SEGMENT_B 3
+#define SEGMENT_C 4
+#define SEGMENT_D 5
+#define SEGMENT_E 6
+#define SEGMENT_F 7
+#define SEGMENT_G 8
+#define SEGMENT_DP 9
+
+// Digital output pins to select each of the four digits
+#define DIGIT_1 10
+#define DIGIT_2 11
+#define DIGIT_3 12
+#define DIGIT_4 13
+const int numberOfDigits = 4;
+
+// Number of microseconds to leave digit on to achieve 200 Hz
+const int digitTimeOn = 1250;
+
+// Interval in seconds between counter increments - 0.2 sec for 5 counts/sec
+const float timeBetweenIncrements = 0.2;
+const float microsecondsInASecond = 1000000.0;
+
+// Number of digits after decimal points and floating-point constants
+const int scaleOfNumber = 1; // number of digits after decimal point
+const int scalingFactor = pow(10.0, scaleOfNumber);
+const float increment = 1.0 / scalingFactor;
+const float minimumValue = -pow(10.0, numberOfDigits - 1) / scalingFactor + increment;
+const float maximumValue = pow(10.0, numberOfDigits) / scalingFactor - increment;
+
+// Counters to control value displayed on seven-segment display
+float displayCounter = minimumValue;
+long iterations = 0;
+
 // Segment encodings for digits 0, 1, 2, 3, 4, 5, 6, 7, 8, and 9 and for the
 // minus // sign '-'. Each bit represents a segment in the following order:
 // n/a, a, b, c, d, e, f, g. The most significant bit is not used. Segments
@@ -44,71 +79,27 @@
 //      +-------+  . dp
 //          d
 const int segmentPatterns[] = {
-  0b01111110, // 0: a, b, c, d, e, f
-  0b00110000, // 1: b, c
-  0b01101101, // 2: a, b, d, e, g
-  0b01111001, // 3: a, b, c, d, g
-  0b00110011, // 4: b, c, f, g
-  0b01011011, // 5: a, c, d, f, g
-  0b01011111, // 6: a, c, d, e, f, g
-  0b01110000, // 7: a, b, c
-  0b01111111, // 8: a, b, c, d, e, f, g
-  0b01111011, // 9: a, b, c, d, f, g
+  0b1111110, // 0: a, b, c, d, e, f
+  0b0110000, // 1: b, c
+  0b1101101, // 2: a, b, d, e, g
+  0b1111001, // 3: a, b, c, d, g
+  0b0110011, // 4: b, c, f, g
+  0b1011011, // 5: a, c, d, f, g
+  0b1011111, // 6: a, c, d, e, f, g
+  0b1110000, // 7: a, b, c
+  0b1111111, // 8: a, b, c, d, e, f, g
+  0b1111011, // 9: a, b, c, d, f, g
 };
-const int minusSign = 0b00000001; // -: g
-
-// Digital output pins to select each of the four digits
-#define DIGIT_1 10
-#define DIGIT_2 11
-#define DIGIT_3 12
-#define DIGIT_4 13
-const int numberOfDigits = 4;
-
-// Digital output pins to turn on or off each segment of the selected digit
-#define SEGMENT_A 2
-#define SEGMENT_B 3
-#define SEGMENT_C 4
-#define SEGMENT_D 5
-#define SEGMENT_E 6
-#define SEGMENT_F 7
-#define SEGMENT_G 8
-#define SEGMENT_DP 9
-
-// Number of microseconds to leave digit on to achieve 100 Hz
-const int digitTimeOn = 2500;
-
-// Interval in seconds between counter increments - 5 counts/sec
-const float timeBetweenIncrements = 0.2;
-
-// Number of digits after decimal points and floating-point constants
-const int scaleOfNumber = 1; // number of digits after decimal point
-const int scalingFactor = pow(10.0, scaleOfNumber);
-const float increment = 1.0 / scalingFactor;
-const float minimumValue = -pow(10.0, numberOfDigits - 1) / scalingFactor;
-const float maximumValue = pow(10.0, numberOfDigits) / scalingFactor;
-
-// Counters to control value displayed on seven-segment display
-long iterations = 0;
-float displayCounter = minimumValue;
 
 // void extinguishDigits()
-// Extinguishes all digits in the four digit seven-segment display
+// Extinguish all digits in the four digit seven-segment display
 void extinguishDigits()
 {
-  // Float all common cathodes by setting the gigit pind as input
+  // Float all common cathodes by setting all digit pins as INPUT
   for (int currentDigit = DIGIT_1; currentDigit <= DIGIT_4; currentDigit++)
   {
     pinMode(currentDigit, INPUT);
   }
-
-  // Turn off all segment anodes
-  for (int currentSegment = SEGMENT_G; currentSegment >= SEGMENT_A; currentSegment--)
-  {
-    digitalWrite(currentSegment, LOW);
-  }
-
-  // Turn off decimal precision
-  digitalWrite(SEGMENT_DP, LOW);
 }
 
 // void displayMinusSign(digit)
@@ -118,25 +109,27 @@ void displayMinusSign(int digit)
   // Extinguish all digits
   extinguishDigits();
 
-  // Prepare the segments to light
-  int segments = minusSign;
-
-  // turn on or off each segment
-  for (int currentSegment = SEGMENT_G; currentSegment >= SEGMENT_A; currentSegment--)
+  // Turn off all digit segments
+  for (int currentSegment = SEGMENT_F; currentSegment >= SEGMENT_A; currentSegment--)
   {
-    digitalWrite(currentSegment, (segments & 1) == 1);
-    segments = segments >> 1;
+    digitalWrite(currentSegment, LOW);
   }
 
-  // Select requested digit
+  // Turn off decimal point segment
+  digitalWrite(SEGMENT_DP,LOW);
+
+  // Turn on g segment to display minus sign ('-')
+  digitalWrite(SEGMENT_G, HIGH);
+
+  // Activate requested digit
   int selectedDigitPin = digit + DIGIT_1 - 1;
   pinMode(selectedDigitPin, OUTPUT);
   digitalWrite(selectedDigitPin, LOW);
 }
 
 // void displayDigit(digit, value, decimalPoint)
-// displays a value, between 0 and 9 on the specified digit of the display
-// and displays the decimal point if required.
+// Display a value, between 0 and 9 on the specified digit of the display
+// and display the decimal point if required.
 void displayDigit(int digit, int value, bool decimalPoint)
 {
   // Extinguish all digits
@@ -152,7 +145,7 @@ void displayDigit(int digit, int value, bool decimalPoint)
   // turn on or off each segment
   for (int currentSegment = SEGMENT_G; currentSegment >= SEGMENT_A; currentSegment--)
   {
-    digitalWrite(currentSegment, (segments & 1) == 1);
+    digitalWrite(currentSegment, segments & 0b00000001);
     segments = segments >> 1;
   }
 
@@ -166,7 +159,7 @@ void displayDigit(int digit, int value, bool decimalPoint)
 }
 
 // void displayNumber(number)
-// displays the number passed as a parameter on the four digit
+// Display the number passed as a parameter on the four digit
 // seven-segment display.
 void displayNumber(float number)
 {
@@ -174,7 +167,7 @@ void displayNumber(float number)
   int currentDigit = numberOfDigits;
 
   // Only numbers smaller than the maximum value can be displayed
-  if ((number > minimumValue) && (number < maximumValue))
+  if ((number >= minimumValue) && (number <= maximumValue))
   {
     // Scale the number and extract decimal and integer portions of number
     bool negative = false;
@@ -228,30 +221,31 @@ void displayNumber(float number)
 // Set all digital pins used for digit selection as input to extinguish all digits
 // and set display segments as outputs.
 void setup() {
-  // Float all digit selection digital pins as input
-  for (int currentDigit = DIGIT_1; currentDigit <= DIGIT_4; currentDigit++)
-  {
-    pinMode(currentDigit, INPUT);
-  }
 
+  // Float all digit selection digital pins as input
+  extinguishDigits();
+  
   // Set all segment digital pins as output and turn them off
   for (int currentSegment = SEGMENT_G; currentSegment >= SEGMENT_A; currentSegment--)
   {
     pinMode(currentSegment, OUTPUT);
-    digitalWrite(currentSegment, LOW);
   }
 
   // Set decimal point digital pin as output and turn it off
   pinMode(SEGMENT_DP, OUTPUT);
-  digitalWrite(SEGMENT_DP, LOW);
+
+  // Reset counters
+  displayCounter = minimumValue;
+  iterations = 0;
 }
 
 // void loop()
 // Continuously display the counter and increment it at the specified interval.
 void loop() {
   // Increment number of iterations until the interval between increments has been reached
+  // Each iteration takes digitTimeOn*numberOfDigits microseconds
   iterations++;
-  if (timeBetweenIncrements < (iterations * digitTimeOn * numberOfDigits / 1000000.0))
+  if ((iterations * digitTimeOn * numberOfDigits / microsecondsInASecond) > timeBetweenIncrements)
   {
     // Reset loop counter and increment display counter
     iterations = 0;
